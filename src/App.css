@@ -1,0 +1,533 @@
+/* ── App shell ── */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.app-content {
+  flex: 1;
+  padding: 16px;
+  padding-top: calc(16px + var(--safe-top));
+  padding-bottom: 72px; /* space for tab bar */
+  max-width: 480px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ── Tab bar ── */
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  padding-bottom: var(--safe-bottom);
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 12px 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tab-btn--active {
+  color: var(--accent);
+}
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 48px;
+  padding: 12px 20px;
+  font-size: 1rem;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.btn:active { opacity: 0.8; }
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--accent-hover); }
+
+.btn-secondary {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-ghost {
+  background: none;
+  color: var(--text-muted);
+  min-height: auto;
+  padding: 8px 12px;
+}
+
+.btn-large {
+  width: 100%;
+  min-height: 56px;
+  font-size: 1.1rem;
+  border-radius: var(--radius);
+}
+
+.btn-xl {
+  width: 100%;
+  min-height: 64px;
+  font-size: 1.15rem;
+  border-radius: var(--radius);
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 20px;
+}
+
+.btn-sub {
+  font-size: 0.8rem;
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+.btn-stepper {
+  min-height: 48px;
+  min-width: 56px;
+  font-size: 0.95rem;
+  padding: 8px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+/* ── Home ── */
+.home {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.home-header {
+  text-align: center;
+  padding-top: 16px;
+}
+
+.home-date {
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.home-phase {
+  color: var(--accent);
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.home-start {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.home-alt-session {
+  text-align: center;
+}
+
+.home-phase-picker {
+  margin-top: 8px;
+}
+
+.phase-chips, .exercise-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.chip {
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.chip--active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.home-last {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.home-last h3 { margin-bottom: 4px; }
+.home-last p { color: var(--text-muted); font-size: 0.9rem; }
+.home-last-volume { font-weight: 500; color: var(--text); }
+
+/* ── Active Workout ── */
+.active-workout {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  padding-top: calc(16px + var(--safe-top));
+  padding-bottom: calc(16px + var(--safe-bottom));
+}
+
+.active-workout-cancel {
+  position: absolute;
+  top: calc(12px + var(--safe-top));
+  right: 12px;
+}
+
+/* ── Set Card ── */
+.set-card {
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+}
+
+.set-card-progress {
+  margin-bottom: 16px;
+}
+
+.set-card-progress-text {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.progress-bar {
+  height: 4px;
+  background: var(--bg-elevated);
+  border-radius: 2px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.set-card-phase {
+  font-size: 0.8rem;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+.set-card-exercise {
+  font-size: 1.6rem;
+  margin-bottom: 4px;
+}
+
+.set-card-set {
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+
+.set-card-prefill {
+  margin-bottom: 32px;
+}
+
+.set-card-values {
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.set-card-values--empty {
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.set-card-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.set-card-actions .btn { flex: 1; }
+
+/* ── Set Editor ── */
+.set-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.set-editor-field label {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stepper-value {
+  flex: 1;
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+}
+
+.stepper-value:active { background: var(--bg-elevated); }
+
+.stepper-input {
+  flex: 1;
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 700;
+  padding: 8px;
+}
+
+.set-editor-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* ── Workout Summary ── */
+.workout-summary {
+  width: 100%;
+  max-width: 480px;
+  padding: 16px;
+  padding-top: calc(16px + var(--safe-top));
+  padding-bottom: calc(16px + var(--safe-bottom));
+  margin: 0 auto;
+}
+
+.workout-summary h2 {
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.summary-subtitle {
+  text-align: center;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+.summary-exercises {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.summary-exercise {
+  background: var(--bg-card);
+  padding: 12px;
+  border-radius: var(--radius-sm);
+}
+
+.summary-exercise h3 { margin-bottom: 6px; }
+
+.summary-sets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.summary-set {
+  background: var(--bg-elevated);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.summary-set--missed {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.summary-volume {
+  text-align: center;
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-bottom: 16px;
+}
+
+.summary-notes {
+  margin-bottom: 20px;
+}
+
+.summary-notes textarea {
+  resize: vertical;
+}
+
+.summary-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── History ── */
+.history {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.history-filter-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.history-filters { margin-bottom: 4px; }
+
+.history-empty {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 32px 0;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-item {
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.history-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.history-item-badge {
+  background: var(--bg-elevated);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  margin-left: 8px;
+}
+
+.history-item-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.history-item-detail {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.history-exercise h4 { margin-bottom: 4px; }
+
+.history-notes {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+.history-sync-status {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.history-sets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* ── Settings ── */
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.settings-section {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-section h3 { margin-bottom: 0; }
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-row {
+  display: flex;
+  gap: 8px;
+}
+
+.settings-row .btn { flex: 1; }
+
+.settings-status {
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+
+.settings-hint {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.settings-sql {
+  font-size: 0.75rem;
+}
+
+/* ── Loading ── */
+.loading {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 32px;
+}
