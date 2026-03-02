@@ -144,6 +144,7 @@ export async function syncToSupabase(): Promise<{ synced: number; errors: number
     }).select('id').single();
 
     if (error) {
+      console.error('Workout sync error:', error, 'workout:', workout);
       errors++;
       continue;
     }
@@ -166,6 +167,7 @@ export async function syncToSupabase(): Promise<{ synced: number; errors: number
       });
 
       if (logError) {
+        console.error('Log sync error:', logError, 'log:', log);
         errors++;
       } else {
         await db.exerciseLogs.update(log.id!, { synced: 1 });
