@@ -108,6 +108,24 @@ export function getSupabase(): SupabaseClient {
   return supabase;
 }
 
+// --- Delete workout ---
+
+export async function deleteWorkout(workoutId: number): Promise<void> {
+  const workout = await db.workouts.get(workoutId);
+  if (!workout) return;
+
+  // Delete from Supabase if synced
+  if (workout.supabaseId) {
+    const client = getSupabase();
+    // exercise_logs cascade automatically via ON DELETE CASCADE
+    await client.from('workouts').delete().eq('id', workout.supabaseId);
+  }
+
+  // Delete local exercise logs and workout
+  await db.exerciseLogs.where('workoutId').equals(workoutId).delete();
+  await db.workouts.delete(workoutId);
+}
+
 // --- Sync logic ---
 
 export async function syncToSupabase(): Promise<{ synced: number; errors: number }> {

@@ -481,9 +481,25 @@
   font-size: 0.9rem;
 }
 
+.history-item-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+
 .history-sync-status {
   font-size: 0.8rem;
   color: var(--text-muted);
+}
+
+.btn-danger-ghost {
+  background: none;
+  color: var(--danger, #ef4444);
+  font-size: 0.85rem;
+  padding: 6px 12px;
+  min-height: auto;
+  border: 1px solid var(--danger, #ef4444);
 }
 
 .history-sets {

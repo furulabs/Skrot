@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '../db/database';
+import { db, deleteWorkout } from '../db/database';
 import { getPhase, getExercise, EXERCISES } from '../db/seed';
 import { formatDate, formatNumber, formatSet } from '../utils/format';
 import ProgressionChart from './ProgressionChart';
@@ -147,9 +147,22 @@ export default function History() {
                       );
                     })}
                     {w.notes && <p className="history-notes">{w.notes}</p>}
-                    <span className="history-sync-status">
-                      {w.synced ? '☁ Synced' : '⏳ Pending sync'}
-                    </span>
+                    <div className="history-item-actions">
+                      <span className="history-sync-status">
+                        {w.synced ? '☁ Synced' : '⏳ Pending sync'}
+                      </span>
+                      <button
+                        className="btn btn-danger-ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm('Delete this workout? This cannot be undone.')) {
+                            deleteWorkout(w.id!);
+                          }
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
