@@ -196,9 +196,34 @@ export async function pullFromSupabase(): Promise<number> {
   if (error || !workouts) return 0;
 
   for (const w of workouts) {
-    // Skip if already exists locally
     const existing = await db.workouts.where('supabaseId').equals(w.id).first();
-    if (existing) continue;
+
+    if (existing) {
+      // Update existing workout fields
+      await db.workouts.update(existing.id!, {
+        date: w.date,
+        phaseId: w.phase_id,
+        sessionId: w.session_id,
+        notes: w.notes || '',
+        synced: 1,
+      });
+
+      // Replace exercise logs: delete old, insert fresh from cloud
+      await db.exerciseLogs.where('workoutId').equals(existing.id!).delete();
+      for (const log of w.exercise_logs || []) {
+        await db.exerciseLogs.add({
+          supabaseId: log.id,
+          workoutId: existing.id!,
+          exerciseId: log.exercise_id,
+          setNumber: log.set_number,
+          weight: log.weight,
+          reps: log.reps,
+          synced: 1,
+        });
+      }
+      imported++;
+      continue;
+    }
 
     const localId = await db.workouts.add({
       supabaseId: w.id,

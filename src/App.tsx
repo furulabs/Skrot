@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { SessionId, PhaseId } from './types';
-import { loadDraft } from './db/database';
+import { loadDraft, pullFromSupabase, syncToSupabase } from './db/database';
 import Home from './components/Home';
 import ActiveWorkout from './components/ActiveWorkout';
 import History from './components/History';
@@ -14,6 +14,24 @@ export default function App() {
     const saved = sessionStorage.getItem('activeTab');
     return (saved as Tab) || 'home';
   });
+
+  // Auto-sync: push unsynced data then pull latest from cloud
+  useEffect(() => {
+    function sync() {
+      syncToSupabase()
+        .then(() => pullFromSupabase())
+        .catch(() => {});
+    }
+
+    sync(); // on mount
+
+    // Also sync when app comes back to foreground (phone wake / tab switch)
+    function onVisible() {
+      if (document.visibilityState === 'visible') sync();
+    }
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
 
   function switchTab(t: Tab) {
     sessionStorage.setItem('activeTab', t);

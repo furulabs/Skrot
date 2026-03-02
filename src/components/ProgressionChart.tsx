@@ -1,4 +1,13 @@
 import { useState, useMemo } from 'react';
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ReferenceArea,
+} from 'recharts';
 import type { Workout, ExerciseLog, ExerciseUnit } from '../types';
 import { PHASES } from '../db/seed';
 
@@ -14,9 +23,7 @@ interface DataPoint {
   date: string;
   dateTs: number;
   phaseId: string;
-  maxWeight: number;
-  avgReps: number;
-  totalVolume: number;
+  value: number;
 }
 
 const PHASE_COLORS: Record<string, string> = {
@@ -34,7 +41,6 @@ const PHASE_BORDER_COLORS: Record<string, string> = {
 };
 
 const LINE_COLOR = '#4f8cff';
-const DOT_COLOR = '#4f8cff';
 
 const MODE_LABELS: Record<ChartMode, string> = {
   weight: 'Weight',
@@ -44,21 +50,41 @@ const MODE_LABELS: Record<ChartMode, string> = {
 
 function defaultMode(unit: ExerciseUnit): ChartMode {
   if (unit === 'reps-only') return 'reps';
-  if (unit === 'seconds') return 'weight'; // "weight" stores seconds
+  if (unit === 'seconds') return 'weight';
   return 'weight';
 }
 
 function availableModes(unit: ExerciseUnit): ChartMode[] {
   if (unit === 'reps-only') return ['reps'];
-  if (unit === 'seconds') return ['weight']; // only duration makes sense
+  if (unit === 'seconds') return ['weight'];
   return ['weight', 'reps', 'volume'];
+}
+
+function getValue(
+  wLogs: ExerciseLog[],
+  mode: ChartMode,
+): number {
+  if (mode === 'reps') return wLogs.reduce((a, l) => a + l.reps, 0) / wLogs.length;
+  if (mode === 'volume') return wLogs.reduce((a, l) => a + l.weight * l.reps, 0);
+  return Math.max(...wLogs.map((l) => l.weight));
+}
+
+function formatDate(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getDate()}/${d.getMonth() + 1}`;
+}
+
+interface PhaseRange {
+  phaseId: string;
+  x1: number;
+  x2: number;
 }
 
 export default function ProgressionChart({ workouts, logs, unit }: ProgressionChartProps) {
   const modes = availableModes(unit);
   const [mode, setMode] = useState<ChartMode>(defaultMode(unit));
 
-  const data = useMemo(() => {
+  const { data, phaseRanges, yLabel } = useMemo(() => {
     const points: DataPoint[] = [];
 
     for (const w of workouts) {
@@ -69,81 +95,42 @@ export default function ProgressionChart({ workouts, logs, unit }: ProgressionCh
         date: w.date,
         dateTs: new Date(w.date).getTime(),
         phaseId: w.phaseId,
-        maxWeight: Math.max(...wLogs.map((l) => l.weight)),
-        avgReps: wLogs.reduce((a, l) => a + l.reps, 0) / wLogs.length,
-        totalVolume: wLogs.reduce((a, l) => a + l.weight * l.reps, 0),
+        value: getValue(wLogs, mode),
       });
     }
 
-    return points.sort((a, b) => a.dateTs - b.dateTs);
-  }, [workouts, logs]);
+    points.sort((a, b) => a.dateTs - b.dateTs);
+
+    // Build phase ranges for background coloring
+    const ranges: PhaseRange[] = [];
+    if (points.length > 0) {
+      let currentPhase = points[0].phaseId;
+      let rangeStart = points[0].dateTs;
+
+      for (let i = 1; i < points.length; i++) {
+        if (points[i].phaseId !== currentPhase) {
+          // Midpoint between last point of old phase and first of new
+          const midpoint = (points[i - 1].dateTs + points[i].dateTs) / 2;
+          ranges.push({ phaseId: currentPhase, x1: rangeStart, x2: midpoint });
+          currentPhase = points[i].phaseId;
+          rangeStart = midpoint;
+        }
+      }
+      ranges.push({ phaseId: currentPhase, x1: rangeStart, x2: points[points.length - 1].dateTs });
+    }
+
+    const label = (() => {
+      if (unit === 'seconds') return 'sec';
+      if (mode === 'reps') return 'reps';
+      if (mode === 'volume') return 'kg';
+      return 'kg';
+    })();
+
+    return { data: points, phaseRanges: ranges, yLabel: label };
+  }, [workouts, logs, mode, unit]);
 
   if (data.length < 2) return null;
 
-  const getValue = (p: DataPoint) => {
-    if (mode === 'reps') return p.avgReps;
-    if (mode === 'volume') return p.totalVolume;
-    return p.maxWeight;
-  };
-
-  const yLabel = (() => {
-    if (unit === 'seconds') return 'sec';
-    if (mode === 'reps') return 'reps';
-    if (mode === 'volume') return 'kg';
-    return 'kg';
-  })();
-
-  const values = data.map(getValue);
-  const minVal = Math.min(...values);
-  const maxVal = Math.max(...values);
-  const valRange = maxVal - minVal || 1;
-
-  // Chart dimensions
-  const W = 360;
-  const H = 200;
-  const PAD_L = 44;
-  const PAD_R = 12;
-  const PAD_T = 16;
-  const PAD_B = 40;
-  const chartW = W - PAD_L - PAD_R;
-  const chartH = H - PAD_T - PAD_B;
-
-  const minTs = data[0].dateTs;
-  const maxTs = data[data.length - 1].dateTs;
-  const tsRange = maxTs - minTs || 1;
-
-  const toX = (ts: number) => PAD_L + ((ts - minTs) / tsRange) * chartW;
-  const toY = (v: number) => PAD_T + chartH - ((v - minVal + valRange * 0.1) / (valRange * 1.2)) * chartH;
-
-  // Phase background rects
-  const phaseRanges: { phaseId: string; x1: number; x2: number }[] = [];
-  let currentPhase = data[0].phaseId;
-  let rangeStart = data[0].dateTs;
-
-  for (let i = 1; i < data.length; i++) {
-    if (data[i].phaseId !== currentPhase) {
-      phaseRanges.push({ phaseId: currentPhase, x1: toX(rangeStart), x2: toX(data[i].dateTs) });
-      currentPhase = data[i].phaseId;
-      rangeStart = data[i].dateTs;
-    }
-  }
-  phaseRanges.push({ phaseId: currentPhase, x1: toX(rangeStart), x2: toX(maxTs) });
-
-  // Line path
-  const linePoints = data.map((p) => `${toX(p.dateTs)},${toY(getValue(p))}`);
-  const linePath = `M${linePoints.join(' L')}`;
-
-  // Y-axis ticks
-  const yTicks = 4;
-  const yStep = valRange / yTicks;
-  const yTickValues = Array.from({ length: yTicks + 1 }, (_, i) => minVal + i * yStep);
-
-  // X-axis date labels
-  const xLabelCount = Math.min(5, data.length);
-  const xLabelStep = Math.max(1, Math.floor(data.length / xLabelCount));
-  const xLabels = data.filter((_, i) => i % xLabelStep === 0 || i === data.length - 1);
-
-  // Phase legend
   const presentPhases = [...new Set(data.map((d) => d.phaseId))];
 
   return (
@@ -162,84 +149,75 @@ export default function ProgressionChart({ workouts, logs, unit }: ProgressionCh
         </div>
       )}
 
-      <svg viewBox={`0 0 ${W} ${H}`} className="chart-svg">
-        {/* Phase backgrounds */}
-        {phaseRanges.map((r, i) => (
-          <rect
-            key={i}
-            x={r.x1}
-            y={PAD_T}
-            width={Math.max(r.x2 - r.x1, 2)}
-            height={chartH}
-            fill={PHASE_COLORS[r.phaseId] ?? 'transparent'}
-          />
-        ))}
-
-        {/* Phase boundary lines */}
-        {phaseRanges.slice(1).map((r, i) => (
-          <line
-            key={`b${i}`}
-            x1={r.x1}
-            y1={PAD_T}
-            x2={r.x1}
-            y2={PAD_T + chartH}
-            stroke={PHASE_BORDER_COLORS[phaseRanges[i].phaseId] ?? '#666'}
-            strokeWidth="1"
-            strokeDasharray="4 3"
-          />
-        ))}
-
-        {/* Y-axis grid + labels */}
-        {yTickValues.map((v, i) => (
-          <g key={i}>
-            <line
-              x1={PAD_L}
-              y1={toY(v)}
-              x2={W - PAD_R}
-              y2={toY(v)}
-              stroke="#333"
-              strokeWidth="0.5"
+      <ResponsiveContainer width="100%" height={200}>
+        <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+          {/* Phase background areas */}
+          {phaseRanges.map((r, i) => (
+            <ReferenceArea
+              key={i}
+              x1={r.x1}
+              x2={r.x2}
+              fill={PHASE_COLORS[r.phaseId] ?? 'transparent'}
+              fillOpacity={1}
+              ifOverflow="extendDomain"
             />
-            <text x={PAD_L - 4} y={toY(v) + 4} textAnchor="end" className="chart-label">
-              {mode === 'volume' ? Math.round(v).toLocaleString() : Math.round(v * 10) / 10}
-            </text>
-          </g>
-        ))}
+          ))}
 
-        {/* X-axis date labels */}
-        {xLabels.map((p) => (
-          <text
-            key={p.date}
-            x={toX(p.dateTs)}
-            y={H - 8}
-            textAnchor="middle"
-            className="chart-label"
-          >
-            {p.date.slice(5)}
-          </text>
-        ))}
-
-        {/* Data line */}
-        <path d={linePath} fill="none" stroke={LINE_COLOR} strokeWidth="2" strokeLinejoin="round" />
-
-        {/* Data dots */}
-        {data.map((p, i) => (
-          <circle
-            key={i}
-            cx={toX(p.dateTs)}
-            cy={toY(getValue(p))}
-            r="4"
-            fill={DOT_COLOR}
-            stroke="#0f0f0f"
-            strokeWidth="1.5"
+          <XAxis
+            dataKey="dateTs"
+            type="number"
+            domain={['dataMin', 'dataMax']}
+            tickFormatter={formatDate}
+            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            axisLine={{ stroke: '#333' }}
+            tickLine={false}
+            tickCount={5}
+            scale="time"
           />
-        ))}
-
-        {/* Y-axis unit label */}
-        <text x={4} y={PAD_T + 4} className="chart-label chart-label--unit">
-          {yLabel}
-        </text>
-      </svg>
+          <YAxis
+            domain={['auto', 'auto']}
+            tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+            tickFormatter={(v: number) =>
+              mode === 'volume' ? Math.round(v).toLocaleString() : String(Math.round(v * 10) / 10)
+            }
+            label={{
+              value: yLabel,
+              position: 'insideTopLeft',
+              offset: 10,
+              style: { fill: 'var(--text-muted)', fontSize: 10, textTransform: 'uppercase' },
+            }}
+          />
+          <Tooltip
+            contentStyle={{
+              background: 'var(--bg-elevated)',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              fontSize: 13,
+            }}
+            labelFormatter={(ts) => {
+              const d = new Date(Number(ts));
+              return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+            }}
+            formatter={(val) => {
+              const v = Number(val);
+              return [
+                mode === 'volume' ? Math.round(v).toLocaleString() : Math.round(v * 10) / 10,
+                MODE_LABELS[mode],
+              ];
+            }}
+          />
+          <Line
+            type="monotone"
+            dataKey="value"
+            stroke={LINE_COLOR}
+            strokeWidth={2}
+            dot={{ fill: LINE_COLOR, stroke: '#0f0f0f', strokeWidth: 1.5, r: 4 }}
+            activeDot={{ fill: LINE_COLOR, stroke: '#fff', strokeWidth: 2, r: 5 }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
 
       {/* Phase legend */}
       <div className="chart-legend">

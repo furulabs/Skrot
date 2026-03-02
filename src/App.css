@@ -596,23 +596,6 @@
   color: #fff;
 }
 
-.chart-svg {
-  width: 100%;
-  height: auto;
-}
-
-.chart-label {
-  fill: var(--text-muted);
-  font-size: 10px;
-  font-family: inherit;
-}
-
-.chart-label--unit {
-  fill: var(--text-muted);
-  font-size: 9px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
 
 .chart-legend {
   display: flex;

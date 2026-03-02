@@ -36,6 +36,7 @@ export default function ActiveWorkout({
   const [setNumber, setSetNumber] = useState(initialSetNumber);
   const [completedSets, setCompletedSets] = useState<DraftSet[]>(initialSets);
   const [workoutState, setWorkoutState] = useState<WorkoutState>('set');
+  const [workoutId, setWorkoutId] = useState<number | null>(null);
 
   // Next set/exercise to advance to after rest timer
   const [pendingExerciseIndex, setPendingExerciseIndex] = useState<number | null>(null);
@@ -82,7 +83,7 @@ export default function ActiveWorkout({
     [lastLogs, phase.defaultReps, phaseId, settings.bodyweight, settings.deloadWeightPercent]
   );
 
-  // Persist draft on every change
+  // Persist draft on every change (backup for resuming)
   useEffect(() => {
     saveDraft({
       sessionId,
@@ -94,7 +95,32 @@ export default function ActiveWorkout({
     });
   }, [sessionId, phaseId, exerciseIndex, setNumber, completedSets]);
 
-  function handleDone(weight: number, reps: number) {
+  async function handleDone(weight: number, reps: number) {
+    // Create workout record on first set
+    let wId = workoutId;
+    if (wId === null) {
+      const now = new Date().toISOString();
+      wId = await db.workouts.add({
+        date: now.slice(0, 10),
+        phaseId,
+        sessionId,
+        notes: '',
+        createdAt: now,
+        synced: 0,
+      });
+      setWorkoutId(wId);
+    }
+
+    // Write exercise log to DB immediately
+    await db.exerciseLogs.add({
+      workoutId: wId,
+      exerciseId: currentExercise.id,
+      setNumber,
+      weight,
+      reps,
+      synced: 0,
+    });
+
     const newSet: DraftSet = {
       exerciseId: currentExercise.id,
       setNumber,
@@ -107,17 +133,14 @@ export default function ActiveWorkout({
 
     // Determine next position
     if (setNumber < SETS_PER_EXERCISE) {
-      // More sets in this exercise — show rest timer
       setPendingExerciseIndex(exerciseIndex);
       setPendingSetNumber(setNumber + 1);
       setWorkoutState('rest');
     } else if (exerciseIndex < exercises.length - 1) {
-      // Next exercise — show rest timer
       setPendingExerciseIndex(exerciseIndex + 1);
       setPendingSetNumber(1);
       setWorkoutState('rest');
     } else {
-      // Final set — go to summary
       setWorkoutState('summary');
     }
   }
@@ -131,33 +154,20 @@ export default function ActiveWorkout({
   }
 
   async function handleSave(notes: string) {
-    const now = new Date().toISOString();
-    const workoutId = await db.workouts.add({
-      date: now.slice(0, 10),
-      phaseId,
-      sessionId,
-      notes,
-      createdAt: now,
-      synced: 0,
-    });
-
-    for (const s of completedSets) {
-      await db.exerciseLogs.add({
-        workoutId,
-        exerciseId: s.exerciseId,
-        setNumber: s.setNumber,
-        weight: s.weight,
-        reps: s.reps,
-        synced: 0,
-      });
+    if (workoutId !== null && notes) {
+      await db.workouts.update(workoutId, { notes });
     }
-
     clearDraft();
     syncToSupabase().catch(console.error);
     onFinish();
   }
 
-  function handleDiscard() {
+  async function handleDiscard() {
+    // Delete the in-progress workout from DB if it was created
+    if (workoutId !== null) {
+      await db.exerciseLogs.where('workoutId').equals(workoutId).delete();
+      await db.workouts.delete(workoutId);
+    }
     clearDraft();
     onFinish();
   }

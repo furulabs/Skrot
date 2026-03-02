@@ -1,8 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, syncToSupabase, pullFromSupabase, getProgramSettings, setProgramSettings } from '../db/database';
-import { exportWorkoutsCSV, importWorkoutsCSV } from '../utils/csv';
-import { importSpreadsheetCSV } from '../utils/importSpreadsheet';
+import { db, getProgramSettings, setProgramSettings } from '../db/database';
 
 export default function Settings() {
   const program = getProgramSettings();
@@ -11,68 +9,9 @@ export default function Settings() {
   const [restSeconds, setRestSeconds] = useState(program.restSeconds);
   const [repRanges, setRepRanges] = useState(program.repRanges);
   const [deloadWeightPercent, setDeloadWeightPercent] = useState(program.deloadWeightPercent);
-  const [syncStatus, setSyncStatus] = useState('');
-  const [importStatus, setImportStatus] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const workouts = useLiveQuery(() => db.workouts.toArray());
   const logs = useLiveQuery(() => db.exerciseLogs.toArray());
-
-  async function handlePull() {
-    setSyncStatus('Pulling...');
-    try {
-      const pulled = await pullFromSupabase();
-      setSyncStatus(`Pulled ${pulled} workouts from Supabase.`);
-    } catch (e: any) {
-      setSyncStatus(`Error: ${e.message}`);
-    }
-  }
-
-  async function handleSync() {
-    setSyncStatus('Syncing...');
-    try {
-      const result = await syncToSupabase();
-      setSyncStatus(`Synced ${result.synced} items. ${result.errors ? result.errors + ' errors.' : ''}`);
-    } catch (e: any) {
-      setSyncStatus(`Error: ${e.message}`);
-    }
-  }
-
-  function handleExport() {
-    if (!workouts || !logs) return;
-    const csv = exportWorkoutsCSV(workouts, logs);
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `skrot-workouts-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
-  function handleImportClick() {
-    fileInputRef.current?.click();
-  }
-
-  async function handleImport(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setImportStatus('Importing...');
-    try {
-      const text = await file.text();
-      // Detect spreadsheet format (has "S1 load" header) vs Period CSV format
-      const isSpreadsheet = text.includes('S1 load') || text.includes('A1 Bench');
-      const count = isSpreadsheet
-        ? await importSpreadsheetCSV(text)
-        : await importWorkoutsCSV(text);
-      setImportStatus(`Imported ${count} workouts.`);
-    } catch (err: any) {
-      setImportStatus(`Error: ${err.message}`);
-    }
-    // Reset file input
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  }
 
   return (
     <div className="settings">
@@ -211,51 +150,10 @@ export default function Settings() {
 
       <section className="settings-section">
         <h3>Data</h3>
-        <div className="settings-row">
-          <button className="btn btn-secondary" onClick={handleExport}>
-            Export CSV
-          </button>
-          <button className="btn btn-secondary" onClick={handleImportClick}>
-            Import CSV
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            style={{ display: 'none' }}
-            onChange={handleImport}
-          />
-        </div>
-        {importStatus && <p className="settings-status">{importStatus}</p>}
         <p className="settings-hint">
           {workouts?.length ?? 0} workouts · {logs?.length ?? 0} exercise logs stored locally
         </p>
-        <button
-          className="btn btn-ghost"
-          style={{ color: 'var(--danger)' }}
-          onClick={async () => {
-            if (confirm('Delete all local workout data?')) {
-              await db.exerciseLogs.clear();
-              await db.workouts.clear();
-              setImportStatus('All data cleared.');
-            }
-          }}
-        >
-          Clear all data
-        </button>
-      </section>
-
-      <section className="settings-section">
-        <h3>Supabase Sync</h3>
-        <div className="settings-row">
-          <button className="btn btn-primary" onClick={handlePull}>
-            Pull from Cloud
-          </button>
-          <button className="btn btn-secondary" onClick={handleSync}>
-            Push to Cloud
-          </button>
-        </div>
-        {syncStatus && <p className="settings-status">{syncStatus}</p>}
+        <p className="settings-hint">Syncs automatically with cloud on app launch and after each workout.</p>
       </section>
 
       <section className="settings-section">
