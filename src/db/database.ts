@@ -96,29 +96,15 @@ export function setProgramSettings(settings: Partial<ProgramSettings>): void {
 
 // --- Supabase ---
 
-const SUPABASE_URL_KEY = 'period_supabase_url';
-const SUPABASE_ANON_KEY = 'period_supabase_anon_key';
+const SUPABASE_URL = 'https://fvzxeuhirftyxgvzytec.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ2enhldWhpcmZ0eXhndnp5dGVjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0NDQ5MTgsImV4cCI6MjA4ODAyMDkxOH0.kZl-ZemzgZYlBYqb0h5OgzVQ9SGbTm2ffUHwPASrD-A';
 
 let supabase: SupabaseClient | null = null;
 
-export function getSupabaseConfig(): { url: string; anonKey: string } | null {
-  const url = localStorage.getItem(SUPABASE_URL_KEY);
-  const anonKey = localStorage.getItem(SUPABASE_ANON_KEY);
-  if (url && anonKey) return { url, anonKey };
-  return null;
-}
-
-export function setSupabaseConfig(url: string, anonKey: string): void {
-  localStorage.setItem(SUPABASE_URL_KEY, url);
-  localStorage.setItem(SUPABASE_ANON_KEY, anonKey);
-  supabase = createClient(url, anonKey);
-}
-
-export function getSupabase(): SupabaseClient | null {
-  if (supabase) return supabase;
-  const config = getSupabaseConfig();
-  if (!config) return null;
-  supabase = createClient(config.url, config.anonKey);
+export function getSupabase(): SupabaseClient {
+  if (!supabase) {
+    supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
   return supabase;
 }
 
@@ -126,7 +112,6 @@ export function getSupabase(): SupabaseClient | null {
 
 export async function syncToSupabase(): Promise<{ synced: number; errors: number }> {
   const client = getSupabase();
-  if (!client) return { synced: 0, errors: 0 };
 
   let synced = 0;
   let errors = 0;
@@ -182,7 +167,6 @@ export async function syncToSupabase(): Promise<{ synced: number; errors: number
 
 export async function pullFromSupabase(): Promise<number> {
   const client = getSupabase();
-  if (!client) return 0;
 
   let imported = 0;
 
