@@ -41,6 +41,59 @@ export function clearDraft(): void {
   localStorage.removeItem(DRAFT_KEY);
 }
 
+// --- Program settings (localStorage) ---
+
+const PROGRAM_KEY = 'period_program';
+
+export interface ProgramSettings {
+  phaseSessions: { P1: number; P2: number; P3: number; DL: number };
+  bodyweight: number; // kg, used for pull-up weight tracking
+  restSeconds: { P1: number; P2: number; P3: number; DL: number };
+  repRanges: { P1: [number, number]; P2: [number, number]; P3: [number, number]; DL: [number, number] };
+  deloadWeightPercent: number; // reduce weight by this %
+}
+
+const DEFAULT_PROGRAM: ProgramSettings = {
+  phaseSessions: { P1: 15, P2: 12, P3: 6, DL: 3 },
+  bodyweight: 84,
+  restSeconds: { P1: 60, P2: 120, P3: 180, DL: 60 },
+  repRanges: { P1: [8, 12], P2: [4, 6], P3: [1, 5], DL: [8, 12] },
+  deloadWeightPercent: 50,
+};
+
+function deepMerge(target: any, source: any): any {
+  const result = { ...target };
+  for (const key of Object.keys(source)) {
+    if (
+      source[key] !== null &&
+      typeof source[key] === 'object' &&
+      !Array.isArray(source[key]) &&
+      typeof target[key] === 'object' &&
+      !Array.isArray(target[key])
+    ) {
+      result[key] = deepMerge(target[key], source[key]);
+    } else {
+      result[key] = source[key];
+    }
+  }
+  return result;
+}
+
+export function getProgramSettings(): ProgramSettings {
+  const raw = localStorage.getItem(PROGRAM_KEY);
+  if (!raw) return DEFAULT_PROGRAM;
+  try {
+    return deepMerge(DEFAULT_PROGRAM, JSON.parse(raw));
+  } catch {
+    return DEFAULT_PROGRAM;
+  }
+}
+
+export function setProgramSettings(settings: Partial<ProgramSettings>): void {
+  const current = getProgramSettings();
+  localStorage.setItem(PROGRAM_KEY, JSON.stringify(deepMerge(current, settings)));
+}
+
 // --- Supabase ---
 
 const SUPABASE_URL_KEY = 'period_supabase_url';

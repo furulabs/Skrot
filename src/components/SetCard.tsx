@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Exercise, Phase } from '../types';
 import { SETS_PER_EXERCISE, TOTAL_SETS } from '../db/seed';
+import { formatSet } from '../utils/format';
 import SetEditor from './SetEditor';
 
 interface SetCardProps {
@@ -23,6 +24,46 @@ export default function SetCard({
   onDone,
 }: SetCardProps) {
   const [editing, setEditing] = useState(false);
+  const [timerRunning, setTimerRunning] = useState(false);
+  const [timerRemaining, setTimerRemaining] = useState(prefillWeight); // weight field holds seconds for seconds-unit
+  const startTimeRef = useRef(0);
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+
+  const isTimedExercise = exercise.unit === 'seconds';
+  const timerDuration = prefillWeight; // for seconds-unit exercises, "weight" is the duration
+
+  const handleTimerComplete = useCallback(() => {
+    setTimerRunning(false);
+    try { navigator.vibrate?.(300); } catch { /* ignore */ }
+    onDoneRef.current(timerDuration, prefillReps);
+  }, [timerDuration, prefillReps]);
+
+  useEffect(() => {
+    if (!timerRunning) return;
+
+    startTimeRef.current = Date.now();
+    setTimerRemaining(timerDuration);
+
+    const interval = setInterval(() => {
+      const elapsed = (Date.now() - startTimeRef.current) / 1000;
+      const left = Math.max(0, timerDuration - elapsed);
+      setTimerRemaining(Math.ceil(left));
+
+      if (left <= 0) {
+        clearInterval(interval);
+        handleTimerComplete();
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [timerRunning, timerDuration, handleTimerComplete]);
+
+  function handleStopTimer() {
+    setTimerRunning(false);
+    // Record the prefilled time (not elapsed)
+    onDone(timerDuration, prefillReps);
+  }
 
   return (
     <div className="set-card">
@@ -43,25 +84,44 @@ export default function SetCard({
       <h2 className="set-card-exercise">{exercise.name}</h2>
       <p className="set-card-set">Set {setNumber} of {SETS_PER_EXERCISE}</p>
 
-      {!editing ? (
+      {timerRunning ? (
+        <>
+          <div className="exercise-timer">
+            <span className="exercise-timer-time">{timerRemaining}</span>
+            <span className="exercise-timer-unit">seconds</span>
+          </div>
+          <div className="set-card-actions">
+            <button className="btn btn-secondary btn-large" onClick={handleStopTimer}>
+              Stop
+            </button>
+          </div>
+        </>
+      ) : !editing ? (
         <>
           <div className="set-card-prefill">
-            {prefillWeight > 0 ? (
-              <span className="set-card-values">{prefillWeight}kg × {prefillReps}</span>
+            {(prefillWeight > 0 || (exercise.unit === 'reps-only' && prefillReps > 0)) ? (
+              <span className="set-card-values">{formatSet(prefillWeight, prefillReps, exercise.unit)}</span>
             ) : (
-              <span className="set-card-values set-card-values--empty">Tap Edit to enter weight</span>
+              <span className="set-card-values set-card-values--empty">Tap Edit to enter values</span>
             )}
           </div>
 
           <div className="set-card-actions">
-            {prefillWeight > 0 && (
+            {isTimedExercise && prefillWeight > 0 ? (
+              <button
+                className="btn btn-primary btn-large"
+                onClick={() => setTimerRunning(true)}
+              >
+                Start Timer
+              </button>
+            ) : (prefillWeight > 0 || (exercise.unit === 'reps-only' && prefillReps > 0)) ? (
               <button
                 className="btn btn-primary btn-large"
                 onClick={() => onDone(prefillWeight, prefillReps)}
               >
                 Done ✓
               </button>
-            )}
+            ) : null}
             <button
               className="btn btn-secondary btn-large"
               onClick={() => setEditing(true)}
@@ -74,6 +134,7 @@ export default function SetCard({
         <SetEditor
           initialWeight={prefillWeight}
           initialReps={prefillReps}
+          unit={exercise.unit}
           onConfirm={(weight, reps) => {
             setEditing(false);
             onDone(weight, reps);

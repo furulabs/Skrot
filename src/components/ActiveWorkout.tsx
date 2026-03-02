@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { SessionId, PhaseId, DraftSet } from '../types';
-import { db, saveDraft, clearDraft, syncToSupabase } from '../db/database';
-import { getExercisesForSession, getPhase, SETS_PER_EXERCISE } from '../db/seed';
+import { db, saveDraft, clearDraft, syncToSupabase, getProgramSettings } from '../db/database';
+import { getExercisesForSession, getPhase, SETS_PER_EXERCISE, getExercise } from '../db/seed';
 import SetCard from './SetCard';
+import RestTimer from './RestTimer';
 import WorkoutSummary from './WorkoutSummary';
+
+type WorkoutState = 'set' | 'rest' | 'summary';
 
 interface ActiveWorkoutProps {
   sessionId: SessionId;
@@ -25,11 +28,18 @@ export default function ActiveWorkout({
 }: ActiveWorkoutProps) {
   const exercises = getExercisesForSession(sessionId);
   const phase = getPhase(phaseId);
+  const settings = getProgramSettings();
+
+  const repRange = settings.repRanges[phaseId];
 
   const [exerciseIndex, setExerciseIndex] = useState(initialExerciseIndex);
   const [setNumber, setSetNumber] = useState(initialSetNumber);
   const [completedSets, setCompletedSets] = useState<DraftSet[]>(initialSets);
-  const [showSummary, setShowSummary] = useState(false);
+  const [workoutState, setWorkoutState] = useState<WorkoutState>('set');
+
+  // Next set/exercise to advance to after rest timer
+  const [pendingExerciseIndex, setPendingExerciseIndex] = useState<number | null>(null);
+  const [pendingSetNumber, setPendingSetNumber] = useState<number | null>(null);
 
   const currentExercise = exercises[exerciseIndex];
 
@@ -55,12 +65,21 @@ export default function ActiveWorkout({
       const prevLog = lastLogs?.find(
         (l) => l.exerciseId === exerciseId && l.setNumber === set
       );
+      const ex = getExercise(exerciseId);
+      const defaultWeight = ex?.id === 'lat-pulldown' ? settings.bodyweight : 0;
+      let weight = prevLog?.weight ?? defaultWeight;
+
+      // Deload: reduce weight by configured percentage
+      if (phaseId === 'DL' && weight > 0) {
+        weight = Math.round(weight * (100 - settings.deloadWeightPercent) / 100);
+      }
+
       return {
-        weight: prevLog?.weight ?? 0,
+        weight,
         reps: prevLog?.reps ?? phase.defaultReps,
       };
     },
-    [lastLogs, phase.defaultReps]
+    [lastLogs, phase.defaultReps, phaseId, settings.bodyweight, settings.deloadWeightPercent]
   );
 
   // Persist draft on every change
@@ -86,15 +105,29 @@ export default function ActiveWorkout({
     const updated = [...completedSets, newSet];
     setCompletedSets(updated);
 
-    // Advance
+    // Determine next position
     if (setNumber < SETS_PER_EXERCISE) {
-      setSetNumber(setNumber + 1);
+      // More sets in this exercise — show rest timer
+      setPendingExerciseIndex(exerciseIndex);
+      setPendingSetNumber(setNumber + 1);
+      setWorkoutState('rest');
     } else if (exerciseIndex < exercises.length - 1) {
-      setExerciseIndex(exerciseIndex + 1);
-      setSetNumber(1);
+      // Next exercise — show rest timer
+      setPendingExerciseIndex(exerciseIndex + 1);
+      setPendingSetNumber(1);
+      setWorkoutState('rest');
     } else {
-      setShowSummary(true);
+      // Final set — go to summary
+      setWorkoutState('summary');
     }
+  }
+
+  function handleRestComplete() {
+    if (pendingExerciseIndex !== null) setExerciseIndex(pendingExerciseIndex);
+    if (pendingSetNumber !== null) setSetNumber(pendingSetNumber);
+    setPendingExerciseIndex(null);
+    setPendingSetNumber(null);
+    setWorkoutState('set');
   }
 
   async function handleSave(notes: string) {
@@ -120,10 +153,7 @@ export default function ActiveWorkout({
     }
 
     clearDraft();
-
-    // Background sync
     syncToSupabase().catch(console.error);
-
     onFinish();
   }
 
@@ -132,7 +162,7 @@ export default function ActiveWorkout({
     onFinish();
   }
 
-  if (showSummary) {
+  if (workoutState === 'summary') {
     return (
       <WorkoutSummary
         sessionId={sessionId}
@@ -144,7 +174,19 @@ export default function ActiveWorkout({
     );
   }
 
+  if (workoutState === 'rest') {
+    return (
+      <RestTimer
+        duration={settings.restSeconds[phaseId]}
+        onComplete={handleRestComplete}
+      />
+    );
+  }
+
   const prefill = getPrefill(currentExercise.id, setNumber);
+
+  // Build a display phase with settings-driven rep range
+  const displayPhase = { ...phase, repRange: repRange as [number, number] };
 
   return (
     <div className="active-workout">
@@ -158,7 +200,7 @@ export default function ActiveWorkout({
         totalCompletedSets={completedSets.length}
         prefillWeight={prefill.weight}
         prefillReps={prefill.reps}
-        phase={phase}
+        phase={displayPhase}
         onDone={handleDone}
       />
     </div>

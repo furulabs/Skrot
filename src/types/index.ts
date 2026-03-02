@@ -8,11 +8,15 @@ export interface Phase {
   defaultReps: number;
 }
 
+export type ExerciseUnit = 'kg' | 'seconds' | 'reps-only';
+
 export interface Exercise {
   id: string;
   name: string;
   session: SessionId;
   order: number;
+  unit: ExerciseUnit;
+  legacy?: boolean;
 }
 
 export interface Workout {

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
 import { getPhase, getExercise, EXERCISES } from '../db/seed';
+import { formatDate, formatNumber, formatSet } from '../utils/format';
+import ProgressionChart from './ProgressionChart';
 
 export default function History() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -33,6 +35,12 @@ export default function History() {
       byWorkout.set(log.workoutId, arr);
     }
 
+    // Workouts that contain this exercise (for the chart)
+    const relevantWorkoutIds = [...byWorkout.keys()];
+    const relevantWorkouts = workouts
+      .filter((w) => relevantWorkoutIds.includes(w.id!))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
     return (
       <div className="history">
         <div className="history-filter-header">
@@ -42,13 +50,19 @@ export default function History() {
           <h2>{getExercise(filterExercise).name} Progression</h2>
         </div>
 
+        <ProgressionChart
+          workouts={relevantWorkouts}
+          logs={exerciseLogs}
+          unit={getExercise(filterExercise).unit}
+        />
+
         {Array.from(byWorkout.entries()).map(([workoutId, logs]) => {
           const workout = workouts.find((w) => w.id === workoutId);
           if (!workout) return null;
           return (
             <div key={workoutId} className="history-item">
               <div className="history-item-header">
-                <span>{workout.date}</span>
+                <span>{formatDate(workout.date)}</span>
                 <span>{getPhase(workout.phaseId).name}</span>
               </div>
               <div className="history-sets">
@@ -56,10 +70,11 @@ export default function History() {
                   .sort((a, b) => a.setNumber - b.setNumber)
                   .map((l) => (
                     <span key={l.id} className="summary-set">
-                      {l.weight}kg × {l.reps}
+                      {formatSet(l.weight, l.reps, getExercise(filterExercise).unit)}
                     </span>
                   ))}
               </div>
+              {workout.notes && <p className="history-notes">{workout.notes}</p>}
             </div>
           );
         })}
@@ -103,12 +118,12 @@ export default function History() {
               >
                 <div className="history-item-header">
                   <div>
-                    <strong>{w.date}</strong>
+                    <strong>{formatDate(w.date)}</strong>
                     <span className="history-item-badge">Session {w.sessionId}</span>
                   </div>
                   <div className="history-item-meta">
                     <span>{getPhase(w.phaseId).name}</span>
-                    <span>{totalVolume.toLocaleString()}kg</span>
+                    <span>{formatNumber(totalVolume)}kg</span>
                   </div>
                 </div>
 
@@ -124,7 +139,7 @@ export default function History() {
                           <div className="history-sets">
                             {exLogs.map((l) => (
                               <span key={l.id} className="summary-set">
-                                {l.weight}kg × {l.reps}
+                                {formatSet(l.weight, l.reps, getExercise(exId).unit)}
                               </span>
                             ))}
                           </div>

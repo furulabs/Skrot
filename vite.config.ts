@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'icon-192.png', 'icon-512.png'],
       manifest: {
-        name: 'Period - Workout Tracker',
-        short_name: 'Period',
+        name: 'Skrot - Workout Tracker',
+        short_name: 'Skrot',
         description: 'Guided set-by-set workout tracker for periodized strength training',
         theme_color: '#0f0f0f',
         background_color: '#0f0f0f',

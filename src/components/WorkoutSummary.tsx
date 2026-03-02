@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { DraftSet, SessionId, PhaseId } from '../types';
 import { getExercise, getPhase, SETS_PER_EXERCISE, getExercisesForSession } from '../db/seed';
+import { formatNumber, formatSet } from '../utils/format';
 
 interface WorkoutSummaryProps {
   sessionId: SessionId;
@@ -34,7 +35,7 @@ export default function WorkoutSummary({ sessionId, phaseId, completedSets, onSa
               <div className="summary-sets">
                 {sets.map((s) => (
                   <span key={s.setNumber} className="summary-set">
-                    {s.weight}kg × {s.reps}
+                    {formatSet(s.weight, s.reps, ex.unit)}
                   </span>
                 ))}
                 {sets.length < SETS_PER_EXERCISE && (
@@ -48,7 +49,7 @@ export default function WorkoutSummary({ sessionId, phaseId, completedSets, onSa
         })}
       </div>
 
-      <p className="summary-volume">Total volume: {totalVolume.toLocaleString()}kg</p>
+      <p className="summary-volume">Total volume: {formatNumber(totalVolume)}kg</p>
 
       <div className="summary-notes">
         <label htmlFor="notes">Notes (optional)</label>
