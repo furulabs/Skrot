@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { DraftSet, SessionId, PhaseId } from '../types';
-import { getExercise, getPhase, SETS_PER_EXERCISE, getExercisesForSession } from '../db/seed';
+import { getPhase, SETS_PER_EXERCISE, getExercisesForSession } from '../db/seed';
 import { formatNumber, formatSet } from '../utils/format';
 
 interface WorkoutSummaryProps {
