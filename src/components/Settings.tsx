@@ -257,6 +257,16 @@ export default function Settings() {
         </div>
         {syncStatus && <p className="settings-status">{syncStatus}</p>}
       </section>
+
+      <section className="settings-section">
+        <h3>App</h3>
+        <button
+          className="btn btn-secondary"
+          onClick={() => window.location.reload()}
+        >
+          Check for Updates
+        </button>
+      </section>
     </div>
   );
 }
