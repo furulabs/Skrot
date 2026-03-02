@@ -262,7 +262,12 @@ export default function Settings() {
         <h3>App</h3>
         <button
           className="btn btn-secondary"
-          onClick={() => window.location.reload()}
+          onClick={(e) => {
+            const btn = e.currentTarget;
+            btn.textContent = 'Updating…';
+            btn.disabled = true;
+            setTimeout(() => window.location.reload(), 500);
+          }}
         >
           Check for Updates
         </button>

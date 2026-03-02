@@ -10,7 +10,15 @@ import './App.css';
 type Tab = 'home' | 'history' | 'settings';
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('home');
+  const [tab, setTab] = useState<Tab>(() => {
+    const saved = sessionStorage.getItem('activeTab');
+    return (saved as Tab) || 'home';
+  });
+
+  function switchTab(t: Tab) {
+    sessionStorage.setItem('activeTab', t);
+    setTab(t);
+  }
   const [workout, setWorkout] = useState<{
     sessionId: SessionId;
     phaseId: PhaseId;
@@ -60,19 +68,19 @@ export default function App() {
       <nav className="tab-bar">
         <button
           className={`tab-btn ${tab === 'home' ? 'tab-btn--active' : ''}`}
-          onClick={() => setTab('home')}
+          onClick={() => switchTab('home')}
         >
           Home
         </button>
         <button
           className={`tab-btn ${tab === 'history' ? 'tab-btn--active' : ''}`}
-          onClick={() => setTab('history')}
+          onClick={() => switchTab('history')}
         >
           History
         </button>
         <button
           className={`tab-btn ${tab === 'settings' ? 'tab-btn--active' : ''}`}
-          onClick={() => setTab('settings')}
+          onClick={() => switchTab('settings')}
         >
           Settings
         </button>
