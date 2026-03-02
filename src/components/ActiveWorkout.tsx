@@ -66,7 +66,7 @@ export default function ActiveWorkout({
         (l) => l.exerciseId === exerciseId && l.setNumber === set
       );
       const ex = getExercise(exerciseId);
-      const defaultWeight = ex?.id === 'lat-pulldown' ? settings.bodyweight : 0;
+      const defaultWeight = ex?.unit === 'seconds' ? 30 : ex?.id === 'lat-pulldown' ? settings.bodyweight : 0;
       let weight = prevLog?.weight ?? defaultWeight;
 
       // Deload: reduce weight by configured percentage
