@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import NoSleep from 'nosleep.js';
 import type { SessionId, PhaseId, DraftSet } from '../types';
 import { db, saveDraft, clearDraft, syncToSupabase, getProgramSettings } from '../db/database';
 import { getExercisesForSession, getPhase, SETS_PER_EXERCISE, getExercise } from '../db/seed';
@@ -96,15 +95,6 @@ export default function ActiveWorkout({
       completedSets,
     });
   }, [sessionId, phaseId, exerciseIndex, setNumber, completedSets]);
-
-  // Keep screen on during workout (NoSleep.js uses video trick on iOS, Wake Lock on others)
-  const noSleepRef = useRef<NoSleep | null>(null);
-  useEffect(() => {
-    const noSleep = new NoSleep();
-    noSleepRef.current = noSleep;
-    noSleep.enable();
-    return () => { noSleep.disable(); };
-  }, []);
 
   async function handleDone(weight: number, reps: number) {
     // Create workout record on first set

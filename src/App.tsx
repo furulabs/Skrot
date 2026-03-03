@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import NoSleep from 'nosleep.js';
 import type { SessionId, PhaseId } from './types';
 import { loadDraft, pullFromSupabase, syncToSupabase } from './db/database';
 import Home from './components/Home';
@@ -43,18 +44,26 @@ export default function App() {
     resumeDraft?: boolean;
   } | null>(null);
 
+  // NoSleep: must be enabled from a user gesture (click handler)
+  const noSleepRef = useRef<NoSleep | null>(null);
+
   function handleStartWorkout(sessionId: SessionId, phaseId: PhaseId) {
+    if (!noSleepRef.current) noSleepRef.current = new NoSleep();
+    noSleepRef.current.enable();
     setWorkout({ sessionId, phaseId });
   }
 
   function handleResumeDraft() {
     const draft = loadDraft();
     if (draft) {
+      if (!noSleepRef.current) noSleepRef.current = new NoSleep();
+      noSleepRef.current.enable();
       setWorkout({ sessionId: draft.sessionId, phaseId: draft.phaseId, resumeDraft: true });
     }
   }
 
   function handleFinish() {
+    noSleepRef.current?.disable();
     setWorkout(null);
   }
 
