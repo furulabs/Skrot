@@ -39,6 +39,9 @@ export default function SetCard({
     onDoneRef.current(timerDuration, prefillReps);
   }, [timerDuration, prefillReps]);
 
+  const handleTimerCompleteRef = useRef(handleTimerComplete);
+  handleTimerCompleteRef.current = handleTimerComplete;
+
   useEffect(() => {
     if (!timerRunning) return;
 
@@ -52,12 +55,12 @@ export default function SetCard({
 
       if (left <= 0) {
         clearInterval(interval);
-        handleTimerComplete();
+        handleTimerCompleteRef.current();
       }
     }, 100);
 
     return () => clearInterval(interval);
-  }, [timerRunning, timerDuration, handleTimerComplete]);
+  }, [timerRunning, timerDuration]);
 
   function handleStopTimer() {
     setTimerRunning(false);

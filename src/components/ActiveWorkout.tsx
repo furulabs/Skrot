@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
+import NoSleep from 'nosleep.js';
 import type { SessionId, PhaseId, DraftSet } from '../types';
 import { db, saveDraft, clearDraft, syncToSupabase, getProgramSettings } from '../db/database';
 import { getExercisesForSession, getPhase, SETS_PER_EXERCISE, getExercise } from '../db/seed';
@@ -96,29 +97,13 @@ export default function ActiveWorkout({
     });
   }, [sessionId, phaseId, exerciseIndex, setNumber, completedSets]);
 
-  // Keep screen on during workout
-  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+  // Keep screen on during workout (NoSleep.js uses video trick on iOS, Wake Lock on others)
+  const noSleepRef = useRef<NoSleep | null>(null);
   useEffect(() => {
-    async function acquireWakeLock() {
-      try {
-        if ('wakeLock' in navigator) {
-          wakeLockRef.current = await navigator.wakeLock.request('screen');
-        }
-      } catch { /* user denied or not supported */ }
-    }
-    acquireWakeLock();
-
-    // Re-acquire when tab becomes visible again (browser releases on hide)
-    function onVisibilityChange() {
-      if (document.visibilityState === 'visible') acquireWakeLock();
-    }
-    document.addEventListener('visibilitychange', onVisibilityChange);
-
-    return () => {
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-      wakeLockRef.current?.release();
-      wakeLockRef.current = null;
-    };
+    const noSleep = new NoSleep();
+    noSleepRef.current = noSleep;
+    noSleep.enable();
+    return () => { noSleep.disable(); };
   }, []);
 
   async function handleDone(weight: number, reps: number) {
@@ -161,10 +146,12 @@ export default function ActiveWorkout({
     if (setNumber < SETS_PER_EXERCISE) {
       setPendingExerciseIndex(exerciseIndex);
       setPendingSetNumber(setNumber + 1);
+      sessionStorage.setItem('restStartedAt', String(Date.now()));
       setWorkoutState('rest');
     } else if (exerciseIndex < exercises.length - 1) {
       setPendingExerciseIndex(exerciseIndex + 1);
       setPendingSetNumber(1);
+      sessionStorage.setItem('restStartedAt', String(Date.now()));
       setWorkoutState('rest');
     } else {
       setWorkoutState('summary');
@@ -172,6 +159,7 @@ export default function ActiveWorkout({
   }
 
   const handleRestComplete = useCallback(() => {
+    sessionStorage.removeItem('restStartedAt');
     if (pendingExerciseIndex !== null) setExerciseIndex(pendingExerciseIndex);
     if (pendingSetNumber !== null) setSetNumber(pendingSetNumber);
     setPendingExerciseIndex(null);
@@ -211,9 +199,11 @@ export default function ActiveWorkout({
   }
 
   if (workoutState === 'rest') {
+    const startedAt = Number(sessionStorage.getItem('restStartedAt')) || Date.now();
     return (
       <RestTimer
         duration={settings.restSeconds[phaseId]}
+        startedAt={startedAt}
         onComplete={handleRestComplete}
       />
     );

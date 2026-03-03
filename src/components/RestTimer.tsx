@@ -2,20 +2,31 @@ import { useState, useEffect, useRef } from 'react';
 
 interface RestTimerProps {
   duration: number; // seconds
+  startedAt: number; // Date.now() timestamp when rest began
   onComplete: () => void;
 }
 
 const RADIUS = 90;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-export default function RestTimer({ duration, onComplete }: RestTimerProps) {
-  const [remaining, setRemaining] = useState(duration);
-  const startTimeRef = useRef(Date.now());
+export default function RestTimer({ duration, startedAt, onComplete }: RestTimerProps) {
+  const alreadyElapsed = Math.max(0, (Date.now() - startedAt) / 1000);
+  const initialRemaining = Math.max(0, Math.ceil(duration - alreadyElapsed));
+
+  const [remaining, setRemaining] = useState(initialRemaining);
+  const startTimeRef = useRef(startedAt);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
   useEffect(() => {
-    startTimeRef.current = Date.now();
+    startTimeRef.current = startedAt;
+
+    // If already expired on mount (e.g. screen was off longer than rest duration)
+    const elapsed = (Date.now() - startedAt) / 1000;
+    if (elapsed >= duration) {
+      onCompleteRef.current();
+      return;
+    }
 
     const interval = setInterval(() => {
       const elapsed = (Date.now() - startTimeRef.current) / 1000;
@@ -29,7 +40,7 @@ export default function RestTimer({ duration, onComplete }: RestTimerProps) {
     }, 100);
 
     return () => clearInterval(interval);
-  }, [duration]);
+  }, [duration, startedAt]);
 
   const progress = remaining / duration;
   const dashOffset = CIRCUMFERENCE * (1 - progress);
