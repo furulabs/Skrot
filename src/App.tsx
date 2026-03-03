@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import NoSleep from 'nosleep.js';
 import type { SessionId, PhaseId } from './types';
 import { loadDraft, pullFromSupabase, syncToSupabase } from './db/database';
 import Home from './components/Home';
@@ -26,9 +25,15 @@ export default function App() {
 
     sync(); // on mount
 
-    // Also sync when app comes back to foreground (phone wake / tab switch)
+    // Also sync and re-acquire wake lock when app comes back to foreground
     function onVisible() {
-      if (document.visibilityState === 'visible') sync();
+      if (document.visibilityState === 'visible') {
+        sync();
+        // Re-acquire wake lock (browser releases it when tab is hidden)
+        if (wakeLockRef.current === null && document.querySelector('.active-workout')) {
+          requestWakeLock();
+        }
+      }
     }
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
@@ -44,26 +49,32 @@ export default function App() {
     resumeDraft?: boolean;
   } | null>(null);
 
-  // NoSleep: must be enabled from a user gesture (click handler)
-  const noSleepRef = useRef<NoSleep | null>(null);
+  // Wake Lock: keep screen on during workout (requires iOS 18.4+ for PWA standalone)
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+
+  async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+      wakeLockRef.current = await navigator.wakeLock.request('screen');
+      wakeLockRef.current.addEventListener('release', () => { wakeLockRef.current = null; });
+    } catch { /* not supported in this context, low battery, etc. */ }
+  }
 
   function handleStartWorkout(sessionId: SessionId, phaseId: PhaseId) {
-    if (!noSleepRef.current) noSleepRef.current = new NoSleep();
-    noSleepRef.current.enable();
+    requestWakeLock();
     setWorkout({ sessionId, phaseId });
   }
 
   function handleResumeDraft() {
     const draft = loadDraft();
     if (draft) {
-      if (!noSleepRef.current) noSleepRef.current = new NoSleep();
-      noSleepRef.current.enable();
+      requestWakeLock();
       setWorkout({ sessionId: draft.sessionId, phaseId: draft.phaseId, resumeDraft: true });
     }
   }
 
   function handleFinish() {
-    noSleepRef.current?.disable();
+    wakeLockRef.current?.release();
     setWorkout(null);
   }
 
