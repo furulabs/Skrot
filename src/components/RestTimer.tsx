@@ -11,6 +11,8 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 export default function RestTimer({ duration, onComplete }: RestTimerProps) {
   const [remaining, setRemaining] = useState(duration);
   const startTimeRef = useRef(Date.now());
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     startTimeRef.current = Date.now();
@@ -22,12 +24,12 @@ export default function RestTimer({ duration, onComplete }: RestTimerProps) {
 
       if (left <= 0) {
         clearInterval(interval);
-        onComplete();
+        onCompleteRef.current();
       }
     }, 100);
 
     return () => clearInterval(interval);
-  }, [duration, onComplete]);
+  }, [duration]);
 
   const progress = remaining / duration;
   const dashOffset = CIRCUMFERENCE * (1 - progress);

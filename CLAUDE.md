@@ -23,7 +23,9 @@ No test framework is configured.
 - **Dexie (IndexedDB)** for workouts and exercise logs (`src/db/database.ts` — `PeriodDB` class with `workouts` and `exerciseLogs` tables)
 - **localStorage** for draft state (in-progress workout), program settings (phase durations, rest timers, rep ranges, bodyweight), and optional Supabase credentials
 
-**Supabase sync** is optional — users can configure URL + anon key in Settings. Sync pushes unsynced local records and pulls remote ones, using a `synced` flag (0/1) on each record.
+**sessionStorage** for active tab persistence across page reloads (set in App.tsx `switchTab()`)
+
+**Supabase sync** uses hardcoded URL + anon key (`src/db/database.ts`). Sync pushes unsynced local records and pulls remote ones, using a `synced` flag (0/1) on each record. Deleting a workout also removes it from Supabase (exercise_logs cascade via `ON DELETE CASCADE`).
 
 **Domain model** (`src/types/index.ts`):
 - `Phase` (P1/P2/P3/DL) and `Session` (A/B) define the training program structure
@@ -33,3 +35,7 @@ No test framework is configured.
 **Seed data** (`src/db/seed.ts`): Exercise definitions and phase configs are hardcoded constants, not DB records. Exercises have a `legacy` flag for soft-deletion.
 
 **UI structure** — App.tsx renders a bottom tab bar (Home/History/Settings). ActiveWorkout takes over full-screen when a workout is started. Components use `dexie-react-hooks` for reactive DB queries.
+
+**PWA** — Uses `vite-plugin-pwa` with `registerType: 'autoUpdate'`. Settings has a "Check for Updates" button that reloads the page to activate pending service worker updates.
+
+**Deployment** — Vercel, auto-deploys from `main` via GitHub integration.

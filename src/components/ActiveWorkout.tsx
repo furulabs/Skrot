@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { SessionId, PhaseId, DraftSet } from '../types';
 import { db, saveDraft, clearDraft, syncToSupabase, getProgramSettings } from '../db/database';
@@ -44,16 +44,17 @@ export default function ActiveWorkout({
 
   const currentExercise = exercises[exerciseIndex];
 
-  // Look up last session's data for pre-fill
+  // Look up last session's data for pre-fill (exclude the current in-progress workout)
   const lastWorkout = useLiveQuery(async () => {
-    const last = await db.workouts
+    const all = await db.workouts
       .where('sessionId')
       .equals(sessionId)
       .reverse()
       .sortBy('date');
-    if (last.length === 0) return null;
-    return last[0];
-  }, [sessionId]);
+    // Skip the current workout so pre-fill always uses the previous one
+    const prev = all.find((w) => w.id !== workoutId);
+    return prev ?? null;
+  }, [sessionId, workoutId]);
 
   const lastLogs = useLiveQuery(async () => {
     if (!lastWorkout?.id) return [];
@@ -94,6 +95,31 @@ export default function ActiveWorkout({
       completedSets,
     });
   }, [sessionId, phaseId, exerciseIndex, setNumber, completedSets]);
+
+  // Keep screen on during workout
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
+  useEffect(() => {
+    async function acquireWakeLock() {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLockRef.current = await navigator.wakeLock.request('screen');
+        }
+      } catch { /* user denied or not supported */ }
+    }
+    acquireWakeLock();
+
+    // Re-acquire when tab becomes visible again (browser releases on hide)
+    function onVisibilityChange() {
+      if (document.visibilityState === 'visible') acquireWakeLock();
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      wakeLockRef.current?.release();
+      wakeLockRef.current = null;
+    };
+  }, []);
 
   async function handleDone(weight: number, reps: number) {
     // Create workout record on first set
@@ -145,13 +171,13 @@ export default function ActiveWorkout({
     }
   }
 
-  function handleRestComplete() {
+  const handleRestComplete = useCallback(() => {
     if (pendingExerciseIndex !== null) setExerciseIndex(pendingExerciseIndex);
     if (pendingSetNumber !== null) setSetNumber(pendingSetNumber);
     setPendingExerciseIndex(null);
     setPendingSetNumber(null);
     setWorkoutState('set');
-  }
+  }, [pendingExerciseIndex, pendingSetNumber]);
 
   async function handleSave(notes: string) {
     if (workoutId !== null && notes) {
