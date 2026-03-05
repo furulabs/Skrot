@@ -4,10 +4,9 @@ import type { SessionId, PhaseId, DraftSet } from '../types';
 import { db, saveDraft, clearDraft, syncToSupabase, getProgramSettings } from '../db/database';
 import { getExercisesForSession, getPhase, SETS_PER_EXERCISE, getExercise } from '../db/seed';
 import SetCard from './SetCard';
-import RestTimer from './RestTimer';
 import WorkoutSummary from './WorkoutSummary';
 
-type WorkoutState = 'set' | 'rest' | 'summary';
+type WorkoutState = 'set' | 'summary';
 
 interface ActiveWorkoutProps {
   sessionId: SessionId;
@@ -37,10 +36,10 @@ export default function ActiveWorkout({
   const [completedSets, setCompletedSets] = useState<DraftSet[]>(initialSets);
   const [workoutState, setWorkoutState] = useState<WorkoutState>('set');
   const [workoutId, setWorkoutId] = useState<number | null>(null);
-
-  // Next set/exercise to advance to after rest timer
-  const [pendingExerciseIndex, setPendingExerciseIndex] = useState<number | null>(null);
-  const [pendingSetNumber, setPendingSetNumber] = useState<number | null>(null);
+  const [restStartedAt, setRestStartedAt] = useState<number | null>(() => {
+    const stored = sessionStorage.getItem('restStartedAt');
+    return stored ? Number(stored) : null;
+  });
 
   const currentExercise = exercises[exerciseIndex];
 
@@ -132,17 +131,18 @@ export default function ActiveWorkout({
     const updated = [...completedSets, newSet];
     setCompletedSets(updated);
 
-    // Determine next position
+    // Determine next position — advance immediately and show inline rest timer
     if (setNumber < SETS_PER_EXERCISE) {
-      setPendingExerciseIndex(exerciseIndex);
-      setPendingSetNumber(setNumber + 1);
-      sessionStorage.setItem('restStartedAt', String(Date.now()));
-      setWorkoutState('rest');
+      setSetNumber(setNumber + 1);
+      const now = Date.now();
+      sessionStorage.setItem('restStartedAt', String(now));
+      setRestStartedAt(now);
     } else if (exerciseIndex < exercises.length - 1) {
-      setPendingExerciseIndex(exerciseIndex + 1);
-      setPendingSetNumber(1);
-      sessionStorage.setItem('restStartedAt', String(Date.now()));
-      setWorkoutState('rest');
+      setExerciseIndex(exerciseIndex + 1);
+      setSetNumber(1);
+      const now = Date.now();
+      sessionStorage.setItem('restStartedAt', String(now));
+      setRestStartedAt(now);
     } else {
       setWorkoutState('summary');
     }
@@ -150,12 +150,8 @@ export default function ActiveWorkout({
 
   const handleRestComplete = useCallback(() => {
     sessionStorage.removeItem('restStartedAt');
-    if (pendingExerciseIndex !== null) setExerciseIndex(pendingExerciseIndex);
-    if (pendingSetNumber !== null) setSetNumber(pendingSetNumber);
-    setPendingExerciseIndex(null);
-    setPendingSetNumber(null);
-    setWorkoutState('set');
-  }, [pendingExerciseIndex, pendingSetNumber]);
+    setRestStartedAt(null);
+  }, []);
 
   async function handleSave(notes: string) {
     if (workoutId !== null && notes) {
@@ -188,17 +184,6 @@ export default function ActiveWorkout({
     );
   }
 
-  if (workoutState === 'rest') {
-    const startedAt = Number(sessionStorage.getItem('restStartedAt')) || Date.now();
-    return (
-      <RestTimer
-        duration={settings.restSeconds[phaseId]}
-        startedAt={startedAt}
-        onComplete={handleRestComplete}
-      />
-    );
-  }
-
   const prefill = getPrefill(currentExercise.id, setNumber);
 
   // Build a display phase with settings-driven rep range
@@ -218,6 +203,9 @@ export default function ActiveWorkout({
         prefillReps={prefill.reps}
         phase={displayPhase}
         onDone={handleDone}
+        restDuration={settings.restSeconds[phaseId]}
+        restStartedAt={restStartedAt}
+        onRestComplete={handleRestComplete}
       />
     </div>
   );
