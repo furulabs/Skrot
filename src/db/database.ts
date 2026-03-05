@@ -180,6 +180,29 @@ export async function syncToSupabase(): Promise<{ synced: number; errors: number
     synced++;
   }
 
+  // Second pass: push any exercise logs saved after their parent workout was already synced
+  const unsyncedLogs = await db.exerciseLogs.where('synced').equals(0).toArray();
+  for (const log of unsyncedLogs) {
+    const workout = await db.workouts.get(log.workoutId);
+    if (!workout?.supabaseId) continue; // parent not synced yet — will be handled next sync
+
+    const { error: logError } = await client.from('exercise_logs').insert({
+      workout_id: workout.supabaseId,
+      exercise_id: log.exerciseId,
+      set_number: log.setNumber,
+      weight: log.weight,
+      reps: log.reps,
+    });
+
+    if (logError) {
+      console.error('Log sync error (second pass):', logError, 'log:', log);
+      errors++;
+    } else {
+      await db.exerciseLogs.update(log.id!, { synced: 1 });
+      synced++;
+    }
+  }
+
   return { synced, errors };
 }
 
