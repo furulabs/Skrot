@@ -121,35 +121,7 @@ export default function SetCard({
       <h2 className="set-card-exercise">{exercise.name}</h2>
       <p className="set-card-set">Set {setNumber} of {SETS_PER_EXERCISE}</p>
 
-      {isResting ? (
-        <div className="set-card-rest">
-          <div className="set-card-rest-circle-wrap">
-            <svg viewBox="0 0 130 130" className="set-card-rest-svg">
-              <circle
-                cx="65" cy="65" r={REST_RADIUS}
-                fill="none"
-                stroke="var(--bg-elevated)"
-                strokeWidth="6"
-              />
-              <circle
-                cx="65" cy="65" r={REST_RADIUS}
-                fill="none"
-                stroke="var(--accent)"
-                strokeWidth="6"
-                strokeLinecap="round"
-                strokeDasharray={REST_CIRCUMFERENCE}
-                strokeDashoffset={restDashOffset}
-                transform="rotate(-90 65 65)"
-                style={{ transition: 'stroke-dashoffset 0.15s linear' }}
-              />
-            </svg>
-            <span className="set-card-rest-time">{restDisplay}</span>
-          </div>
-          <button className="btn btn-secondary set-card-rest-skip" onClick={onRestComplete}>
-            Skip
-          </button>
-        </div>
-      ) : timerRunning ? (
+      {timerRunning ? (
         <>
           <div className="exercise-timer">
             <span className="exercise-timer-time">{elapsed}</span>
@@ -171,29 +143,59 @@ export default function SetCard({
             )}
           </div>
 
-          <div className="set-card-actions">
-            {isTimedExercise ? (
-              <button
-                className="btn btn-primary btn-large"
-                onClick={() => setTimerRunning(true)}
-              >
-                Start
+          {isResting ? (
+            <div className="set-card-rest">
+              <div className="set-card-rest-circle-wrap">
+                <svg viewBox="0 0 130 130" className="set-card-rest-svg">
+                  <circle
+                    cx="65" cy="65" r={REST_RADIUS}
+                    fill="none"
+                    stroke="var(--bg-elevated)"
+                    strokeWidth="6"
+                  />
+                  <circle
+                    cx="65" cy="65" r={REST_RADIUS}
+                    fill="none"
+                    stroke="var(--accent)"
+                    strokeWidth="6"
+                    strokeLinecap="round"
+                    strokeDasharray={REST_CIRCUMFERENCE}
+                    strokeDashoffset={restDashOffset}
+                    transform="rotate(-90 65 65)"
+                    style={{ transition: 'stroke-dashoffset 0.15s linear' }}
+                  />
+                </svg>
+                <span className="set-card-rest-time">{restDisplay}</span>
+              </div>
+              <button className="btn btn-secondary set-card-rest-skip" onClick={onRestComplete}>
+                Skip
               </button>
-            ) : (prefillWeight > 0 || (exercise.unit === 'reps-only' && prefillReps > 0)) ? (
+            </div>
+          ) : (
+            <div className="set-card-actions">
+              {isTimedExercise ? (
+                <button
+                  className="btn btn-primary btn-large"
+                  onClick={() => setTimerRunning(true)}
+                >
+                  Start
+                </button>
+              ) : (prefillWeight > 0 || (exercise.unit === 'reps-only' && prefillReps > 0)) ? (
+                <button
+                  className="btn btn-primary btn-large"
+                  onClick={() => onDone(prefillWeight, prefillReps)}
+                >
+                  Done ✓
+                </button>
+              ) : null}
               <button
-                className="btn btn-primary btn-large"
-                onClick={() => onDone(prefillWeight, prefillReps)}
+                className="btn btn-secondary btn-large"
+                onClick={() => setEditing(true)}
               >
-                Done ✓
+                Edit
               </button>
-            ) : null}
-            <button
-              className="btn btn-secondary btn-large"
-              onClick={() => setEditing(true)}
-            >
-              Edit
-            </button>
-          </div>
+            </div>
+          )}
         </>
       ) : (
         <SetEditor
