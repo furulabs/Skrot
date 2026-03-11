@@ -14,6 +14,7 @@ interface ActiveWorkoutProps {
   initialSets?: DraftSet[];
   initialExerciseIndex?: number;
   initialSetNumber?: number;
+  initialWorkoutId?: number;
   onFinish: () => void;
 }
 
@@ -23,6 +24,7 @@ export default function ActiveWorkout({
   initialSets = [],
   initialExerciseIndex = 0,
   initialSetNumber = 1,
+  initialWorkoutId,
   onFinish,
 }: ActiveWorkoutProps) {
   const exercises = getExercisesForSession(sessionId);
@@ -35,7 +37,7 @@ export default function ActiveWorkout({
   const [setNumber, setSetNumber] = useState(initialSetNumber);
   const [completedSets, setCompletedSets] = useState<DraftSet[]>(initialSets);
   const [workoutState, setWorkoutState] = useState<WorkoutState>('set');
-  const [workoutId, setWorkoutId] = useState<number | null>(null);
+  const [workoutId, setWorkoutId] = useState<number | null>(initialWorkoutId ?? null);
   const [restStartedAt, setRestStartedAt] = useState<number | null>(() => {
     const stored = sessionStorage.getItem('restStartedAt');
     return stored ? Number(stored) : null;
@@ -92,8 +94,9 @@ export default function ActiveWorkout({
       currentExerciseIndex: exerciseIndex,
       currentSetNumber: setNumber,
       completedSets,
+      workoutId: workoutId ?? undefined,
     });
-  }, [sessionId, phaseId, exerciseIndex, setNumber, completedSets]);
+  }, [sessionId, phaseId, exerciseIndex, setNumber, completedSets, workoutId]);
 
   async function handleDone(weight: number, reps: number) {
     // Create workout record on first set

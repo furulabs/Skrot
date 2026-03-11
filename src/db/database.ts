@@ -128,7 +128,19 @@ export async function deleteWorkout(workoutId: number): Promise<void> {
 
 // --- Sync logic ---
 
+let syncInProgress = false;
+
 export async function syncToSupabase(): Promise<{ synced: number; errors: number }> {
+  if (syncInProgress) return { synced: 0, errors: 0 };
+  syncInProgress = true;
+  try {
+    return await doSyncToSupabase();
+  } finally {
+    syncInProgress = false;
+  }
+}
+
+async function doSyncToSupabase(): Promise<{ synced: number; errors: number }> {
   const client = getSupabase();
 
   let synced = 0;
@@ -207,13 +219,29 @@ export async function syncToSupabase(): Promise<{ synced: number; errors: number
 }
 
 export async function pullFromSupabase(): Promise<number> {
+  if (syncInProgress) return 0;
+  syncInProgress = true;
+  try {
+    return await doPullFromSupabase();
+  } finally {
+    syncInProgress = false;
+  }
+}
+
+async function doPullFromSupabase(): Promise<number> {
   const client = getSupabase();
 
   let imported = 0;
 
+  // Only fetch last 90 days to avoid growing payload over time
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 90);
+  const cutoffStr = cutoff.toISOString().slice(0, 10);
+
   const { data: workouts, error } = await client
     .from('workouts')
     .select('*, exercise_logs(*)')
+    .gte('date', cutoffStr)
     .order('date', { ascending: false });
 
   if (error || !workouts) return 0;
@@ -273,10 +301,11 @@ export async function pullFromSupabase(): Promise<number> {
   }
 
   // Remove local workouts that were deleted from Supabase
+  // Only check workouts within the pull window (older ones aren't fetched)
   const remoteIds = new Set(workouts.map(w => w.id));
   const syncedLocal = await db.workouts.where('synced').equals(1).toArray();
   for (const local of syncedLocal) {
-    if (local.supabaseId && !remoteIds.has(local.supabaseId)) {
+    if (local.supabaseId && local.date >= cutoffStr && !remoteIds.has(local.supabaseId)) {
       await db.exerciseLogs.where('workoutId').equals(local.id!).delete();
       await db.workouts.delete(local.id!);
     }

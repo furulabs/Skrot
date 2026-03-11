@@ -48,6 +48,7 @@ export interface Draft {
   currentExerciseIndex: number;
   currentSetNumber: number;
   completedSets: DraftSet[];
+  workoutId?: number;
 }
 
 export interface DraftSet {

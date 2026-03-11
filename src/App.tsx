@@ -96,6 +96,7 @@ export default function App() {
         initialSets={draft?.completedSets}
         initialExerciseIndex={draft?.currentExerciseIndex}
         initialSetNumber={draft?.currentSetNumber}
+        initialWorkoutId={draft?.workoutId}
         onFinish={handleFinish}
       />
     );
