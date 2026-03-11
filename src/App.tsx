@@ -15,11 +15,29 @@ export default function App() {
     return (saved as Tab) || 'home';
   });
 
+  function switchTab(t: Tab) {
+    sessionStorage.setItem('activeTab', t);
+    setTab(t);
+  }
+  const [workout, setWorkout] = useState<{
+    sessionId: SessionId;
+    phaseId: PhaseId;
+    resumeDraft?: boolean;
+  } | null>(null);
+
+  // Track whether a workout is active so we can skip pull during it
+  const workoutActiveRef = useRef(false);
+  useEffect(() => { workoutActiveRef.current = workout !== null; }, [workout]);
+
   // Auto-sync: push unsynced data then pull latest from cloud
+  // Skip pull during active workout — it destructively replaces local exercise logs
+  // which breaks React state and causes the app to stall
   useEffect(() => {
     function sync() {
       syncToSupabase()
-        .then(() => pullFromSupabase())
+        .then(() => {
+          if (!workoutActiveRef.current) return pullFromSupabase();
+        })
         .catch(() => {});
     }
 
@@ -38,16 +56,6 @@ export default function App() {
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
-
-  function switchTab(t: Tab) {
-    sessionStorage.setItem('activeTab', t);
-    setTab(t);
-  }
-  const [workout, setWorkout] = useState<{
-    sessionId: SessionId;
-    phaseId: PhaseId;
-    resumeDraft?: boolean;
-  } | null>(null);
 
   // Wake Lock: keep screen on during workout (requires iOS 18.4+ for PWA standalone)
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
