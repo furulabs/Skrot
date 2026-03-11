@@ -272,5 +272,15 @@ export async function pullFromSupabase(): Promise<number> {
     imported++;
   }
 
+  // Remove local workouts that were deleted from Supabase
+  const remoteIds = new Set(workouts.map(w => w.id));
+  const syncedLocal = await db.workouts.where('synced').equals(1).toArray();
+  for (const local of syncedLocal) {
+    if (local.supabaseId && !remoteIds.has(local.supabaseId)) {
+      await db.exerciseLogs.where('workoutId').equals(local.id!).delete();
+      await db.workouts.delete(local.id!);
+    }
+  }
+
   return imported;
 }
