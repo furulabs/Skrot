@@ -119,7 +119,6 @@ export default function ErgLog() {
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
             onChange={handlePhotoChange}
             style={{ display: 'none' }}
           />
