@@ -23,3 +23,12 @@ export function formatSet(weight: number, reps: number, unit: 'kg' | 'seconds' |
   if (unit === 'reps-only') return `${reps} reps`;
   return `${weight}kg × ${reps}`;
 }
+
+export function formatErgType(type: string): string {
+  switch (type) {
+    case 'row': return 'Row';
+    case 'bike': return 'BikeErg';
+    case 'skierg': return 'SkiErg';
+    default: return type;
+  }
+}

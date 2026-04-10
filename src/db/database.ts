@@ -1,18 +1,24 @@
 import Dexie, { type Table } from 'dexie';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import type { Workout, ExerciseLog, Draft } from '../types';
+import type { Workout, ExerciseLog, Draft, ErgSession } from '../types';
 
 // --- Dexie (local) ---
 
 class PeriodDB extends Dexie {
   workouts!: Table<Workout, number>;
   exerciseLogs!: Table<ExerciseLog, number>;
+  ergSessions!: Table<ErgSession, number>;
 
   constructor() {
     super('PeriodDB');
     this.version(1).stores({
       workouts: '++id, supabaseId, date, sessionId, phaseId, synced',
       exerciseLogs: '++id, supabaseId, workoutId, exerciseId, synced',
+    });
+    this.version(2).stores({
+      workouts: '++id, supabaseId, date, sessionId, phaseId, synced',
+      exerciseLogs: '++id, supabaseId, workoutId, exerciseId, synced',
+      ergSessions: '++id, date, type',
     });
   }
 }
@@ -124,6 +130,12 @@ export async function deleteWorkout(workoutId: number): Promise<void> {
   // Delete local exercise logs and workout
   await db.exerciseLogs.where('workoutId').equals(workoutId).delete();
   await db.workouts.delete(workoutId);
+}
+
+// --- Delete erg session ---
+
+export async function deleteErgSession(id: number): Promise<void> {
+  await db.ergSessions.delete(id);
 }
 
 // --- Sync logic ---

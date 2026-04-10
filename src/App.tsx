@@ -5,9 +5,10 @@ import Home from './components/Home';
 import ActiveWorkout from './components/ActiveWorkout';
 import History from './components/History';
 import Settings from './components/Settings';
+import ErgLog from './components/ErgLog';
 import './App.css';
 
-type Tab = 'home' | 'history' | 'settings';
+type Tab = 'home' | 'history' | 'erg' | 'settings';
 
 export default function App() {
   const [tab, setTab] = useState<Tab>(() => {
@@ -109,6 +110,7 @@ export default function App() {
           <Home onStartWorkout={handleStartWorkout} onResumeDraft={handleResumeDraft} />
         )}
         {tab === 'history' && <History />}
+        {tab === 'erg' && <ErgLog />}
         {tab === 'settings' && <Settings />}
       </main>
 
@@ -124,6 +126,12 @@ export default function App() {
           onClick={() => switchTab('history')}
         >
           History
+        </button>
+        <button
+          className={`tab-btn ${tab === 'erg' ? 'tab-btn--active' : ''}`}
+          onClick={() => switchTab('erg')}
+        >
+          Erg
         </button>
         <button
           className={`tab-btn ${tab === 'settings' ? 'tab-btn--active' : ''}`}

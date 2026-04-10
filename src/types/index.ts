@@ -57,3 +57,20 @@ export interface DraftSet {
   weight: number;
   reps: number;
 }
+
+// --- Erg session tracking ---
+
+export type ErgType = 'row' | 'bike' | 'skierg';
+
+export interface ErgSession {
+  id?: number;
+  date: string; // ISO date string YYYY-MM-DD
+  type: ErgType;
+  time: string; // total time e.g. "5:05" or "30:00"
+  distance: number; // meters
+  pace: string; // avg /500m e.g. "2:09.3"
+  strokeRate?: number; // strokes/min (or rpm for bike)
+  photo?: string; // base64 data URL of the PM5 screen
+  notes: string;
+  createdAt: string;
+}
