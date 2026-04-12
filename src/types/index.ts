@@ -64,6 +64,7 @@ export type ErgType = 'row' | 'bike' | 'skierg';
 
 export interface ErgSession {
   id?: number;
+  supabaseId?: string;
   date: string; // ISO date string YYYY-MM-DD
   type: ErgType;
   time: string; // total time e.g. "5:05" or "30:00"
@@ -73,4 +74,5 @@ export interface ErgSession {
   photo?: string; // base64 data URL of the PM5 screen
   notes: string;
   createdAt: string;
+  synced: 0 | 1;
 }

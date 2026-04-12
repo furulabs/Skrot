@@ -149,6 +149,28 @@ export default function Settings() {
       </section>
 
       <section className="settings-section">
+        <h3>AI Screen Reader</h3>
+        <p className="settings-hint">Auto-read erg screen photos. Get a key at console.anthropic.com</p>
+        <div className="settings-field">
+          <label htmlFor="anthropic-key">Anthropic API Key</label>
+          <input
+            id="anthropic-key"
+            type="password"
+            placeholder="sk-ant-..."
+            defaultValue={localStorage.getItem('anthropic_api_key') ?? ''}
+            onChange={(e) => {
+              const v = e.target.value.trim();
+              if (v) {
+                localStorage.setItem('anthropic_api_key', v);
+              } else {
+                localStorage.removeItem('anthropic_api_key');
+              }
+            }}
+          />
+        </div>
+      </section>
+
+      <section className="settings-section">
         <h3>Data</h3>
         <p className="settings-hint">
           {workouts?.length ?? 0} workouts · {logs?.length ?? 0} exercise logs stored locally

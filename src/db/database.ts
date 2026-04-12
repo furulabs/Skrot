@@ -20,6 +20,11 @@ class PeriodDB extends Dexie {
       exerciseLogs: '++id, supabaseId, workoutId, exerciseId, synced',
       ergSessions: '++id, date, type',
     });
+    this.version(3).stores({
+      workouts: '++id, supabaseId, date, sessionId, phaseId, synced',
+      exerciseLogs: '++id, supabaseId, workoutId, exerciseId, synced',
+      ergSessions: '++id, supabaseId, date, type, synced',
+    });
   }
 }
 
@@ -135,6 +140,11 @@ export async function deleteWorkout(workoutId: number): Promise<void> {
 // --- Delete erg session ---
 
 export async function deleteErgSession(id: number): Promise<void> {
+  const session = await db.ergSessions.get(id);
+  if (session?.supabaseId) {
+    const client = getSupabase();
+    await client.from('erg_sessions').delete().eq('id', session.supabaseId);
+  }
   await db.ergSessions.delete(id);
 }
 
@@ -223,6 +233,30 @@ async function doSyncToSupabase(): Promise<{ synced: number; errors: number }> {
       errors++;
     } else {
       await db.exerciseLogs.update(log.id!, { synced: 1 });
+      synced++;
+    }
+  }
+
+  // Sync unsynced erg sessions
+  const unsyncedErg = await db.ergSessions.where('synced').equals(0).toArray();
+  for (const erg of unsyncedErg) {
+    const { data, error: ergError } = await client.from('erg_sessions').insert({
+      date: erg.date,
+      type: erg.type,
+      time: erg.time,
+      distance: erg.distance,
+      pace: erg.pace,
+      stroke_rate: erg.strokeRate ?? null,
+      photo: erg.photo ?? null,
+      notes: erg.notes,
+      created_at: erg.createdAt,
+    }).select('id').single();
+
+    if (ergError) {
+      console.error('Erg sync error:', ergError, 'session:', erg);
+      errors++;
+    } else {
+      await db.ergSessions.update(erg.id!, { supabaseId: data.id, synced: 1 });
       synced++;
     }
   }
@@ -320,6 +354,56 @@ async function doPullFromSupabase(): Promise<number> {
     if (local.supabaseId && local.date >= cutoffStr && !remoteIds.has(local.supabaseId)) {
       await db.exerciseLogs.where('workoutId').equals(local.id!).delete();
       await db.workouts.delete(local.id!);
+    }
+  }
+
+  // Pull erg sessions
+  const { data: ergSessions, error: ergError } = await client
+    .from('erg_sessions')
+    .select('*')
+    .gte('date', cutoffStr)
+    .order('date', { ascending: false });
+
+  if (!ergError && ergSessions) {
+    for (const e of ergSessions) {
+      const existing = await db.ergSessions.where('supabaseId').equals(e.id).first();
+      if (existing) {
+        await db.ergSessions.update(existing.id!, {
+          date: e.date,
+          type: e.type,
+          time: e.time,
+          distance: e.distance,
+          pace: e.pace,
+          strokeRate: e.stroke_rate ?? undefined,
+          photo: e.photo ?? undefined,
+          notes: e.notes || '',
+          synced: 1,
+        });
+      } else {
+        await db.ergSessions.add({
+          supabaseId: e.id,
+          date: e.date,
+          type: e.type,
+          time: e.time,
+          distance: e.distance,
+          pace: e.pace,
+          strokeRate: e.stroke_rate ?? undefined,
+          photo: e.photo ?? undefined,
+          notes: e.notes || '',
+          createdAt: e.created_at,
+          synced: 1,
+        });
+      }
+      imported++;
+    }
+
+    // Remove local erg sessions deleted from Supabase
+    const remoteErgIds = new Set(ergSessions.map(e => e.id));
+    const syncedErg = await db.ergSessions.where('synced').equals(1).toArray();
+    for (const local of syncedErg) {
+      if (local.supabaseId && local.date >= cutoffStr && !remoteErgIds.has(local.supabaseId)) {
+        await db.ergSessions.delete(local.id!);
+      }
     }
   }
 

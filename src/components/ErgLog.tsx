@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, deleteErgSession } from '../db/database';
 import { formatDate, formatErgType } from '../utils/format';
+import { extractErgData } from '../utils/ergExtract';
 import type { ErgType, ErgSession } from '../types';
 
 const ERG_TYPES: { value: ErgType; label: string }[] = [
@@ -41,6 +42,8 @@ export default function ErgLog() {
   const [strokeRate, setStrokeRate] = useState('');
   const [photo, setPhoto] = useState<string | undefined>(undefined);
   const [notes, setNotes] = useState('');
+  const [extracting, setExtracting] = useState(false);
+  const [extractError, setExtractError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const sessions = useLiveQuery(() =>
@@ -55,6 +58,8 @@ export default function ErgLog() {
     setStrokeRate('');
     setPhoto(undefined);
     setNotes('');
+    setExtracting(false);
+    setExtractError(null);
   }
 
   async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -62,6 +67,23 @@ export default function ErgLog() {
     if (!file) return;
     const dataUrl = await resizeImage(file, 800);
     setPhoto(dataUrl);
+    setExtractError(null);
+
+    const apiKey = localStorage.getItem('anthropic_api_key');
+    if (!apiKey) return;
+
+    setExtracting(true);
+    try {
+      const result = await extractErgData(dataUrl, apiKey);
+      if (result.time) setTime(result.time);
+      if (result.distance != null) setDistance(String(result.distance));
+      if (result.pace) setPace(result.pace);
+      if (result.strokeRate != null) setStrokeRate(String(result.strokeRate));
+    } catch {
+      setExtractError('Could not read screen. Fill in manually.');
+    } finally {
+      setExtracting(false);
+    }
   }
 
   async function handleSave() {
@@ -77,6 +99,7 @@ export default function ErgLog() {
       photo,
       notes,
       createdAt: new Date().toISOString(),
+      synced: 0,
     };
 
     await db.ergSessions.add(session);
@@ -149,6 +172,13 @@ export default function ErgLog() {
             </button>
           )}
         </div>
+
+        {extracting && (
+          <div className="erg-extract-status">Reading screen...</div>
+        )}
+        {extractError && (
+          <div className="erg-extract-error">{extractError}</div>
+        )}
 
         {/* Metrics form */}
         <div className="erg-fields">

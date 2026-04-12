@@ -825,6 +825,25 @@
   border-radius: var(--radius);
 }
 
+.erg-extract-status {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 12px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.erg-extract-error {
+  text-align: center;
+  color: var(--danger, #e74c3c);
+  padding: 8px 12px;
+  font-size: 0.9em;
+}
+
 /* ── Loading ── */
 .loading {
   text-align: center;
