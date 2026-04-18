@@ -45,17 +45,19 @@ export default function ActiveWorkout({
 
   const currentExercise = exercises[exerciseIndex];
 
-  // Look up last session's data for pre-fill (exclude the current in-progress workout)
+  // Look up last session's data for pre-fill (exclude the current in-progress workout).
+  // Prefer the previous workout in the same phase so each phase picks up where it last ended.
+  // Fall back to any previous session if this is the first time in this phase.
   const lastWorkout = useLiveQuery(async () => {
     const all = await db.workouts
       .where('sessionId')
       .equals(sessionId)
       .reverse()
       .sortBy('date');
-    // Skip the current workout so pre-fill always uses the previous one
-    const prev = all.find((w) => w.id !== workoutId);
-    return prev ?? null;
-  }, [sessionId, workoutId]);
+    const candidates = all.filter((w) => w.id !== workoutId);
+    const samePhase = candidates.find((w) => w.phaseId === phaseId);
+    return samePhase ?? candidates[0] ?? null;
+  }, [sessionId, phaseId, workoutId]);
 
   const lastLogs = useLiveQuery(async () => {
     if (!lastWorkout?.id) return [];
@@ -72,8 +74,9 @@ export default function ActiveWorkout({
       const defaultWeight = ex?.unit === 'seconds' ? 30 : ex?.id === 'lat-pulldown' ? settings.bodyweight : 0;
       let weight = prevLog?.weight ?? defaultWeight;
 
-      // Deload: reduce weight by configured percentage
-      if (phaseId === 'DL' && weight > 0) {
+      // Deload: reduce weight only when the source was a non-DL session.
+      // A prior DL session is already deloaded — re-applying would double-deload.
+      if (phaseId === 'DL' && lastWorkout?.phaseId !== 'DL' && weight > 0) {
         weight = Math.round(weight * (100 - settings.deloadWeightPercent) / 100);
       }
 
@@ -82,7 +85,7 @@ export default function ActiveWorkout({
         reps: prevLog?.reps ?? phase.defaultReps,
       };
     },
-    [lastLogs, phase.defaultReps, phaseId, settings.bodyweight, settings.deloadWeightPercent]
+    [lastLogs, lastWorkout?.phaseId, phase.defaultReps, phaseId, settings.bodyweight, settings.deloadWeightPercent]
   );
 
   // Persist draft on every change (backup for resuming)
